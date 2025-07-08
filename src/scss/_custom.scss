@@ -1,0 +1,90 @@
+// Here you can add other styles
+canvas {
+  width: 100% !important;
+}
+td,
+th {
+  height: 50px;
+  vertical-align: middle;
+}
+
+.w-max {
+  width: max-content;
+}
+.wid-110 {
+  width: 110px;
+}
+
+.h-max {
+  height: max-content;
+}
+
+.bakground-no-repeat {
+  background-repeat: no-repeat;
+}
+
+.background-size-cover {
+  background-size: cover;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.progress-bar {
+  background-color: green !important;
+}
+
+.delivery-accept,
+.delivery-reject {
+  padding: 2px 10px;
+  border-radius: 10px;
+  color: white;
+  font-weight: 600;
+}
+
+.delivery-accept {
+  background: #edad21;
+}
+.delivery-reject {
+  background: #249542;
+}
+
+.dark-blue {
+  color: white;
+  background-color: #003366;
+  transition: background-color 0.3s ease;
+}
+.dark-blue:hover {
+  color: white;
+  background-color: #002244;
+}
+
+.auth-back {
+  background-image: url('../../public/images/auth_back.jpg');
+}
+.authlogo-back {
+  background-image: url('../../public/images/login_back.png');
+}
+.authlogo {
+  width: 300px !important;
+}
+
+.dashboard-widget {
+  height: 100px;
+}
+
+.delivery-table-banner {
+  height: 200px;
+  object-fit: cover;
+}
+
+.wizard-card-footer {
+  display: none;
+}
+
+.image-slider {
+  max-height: 300px !important;
+  height: 300px !important;
+  object-fit: contain;
+}
