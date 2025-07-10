@@ -8,6 +8,9 @@ export const API_URLS = {
   // Settings
   GETSETTINGS: `${process.env.REACT_APP_API_URL}/settings/admin/get-settings`,
   UPDATESETTINGS: `${process.env.REACT_APP_API_URL}/settings/admin/update-settings`,
+  UPDATELOGOSIZE: `${process.env.REACT_APP_API_URL}/settings/admin/update-logo-size`,
   UPLOADLOGO: `${process.env.REACT_APP_API_URL}/settings/admin/upload-logo`,
   GETLOGO: `${process.env.REACT_APP_API_URL}/settings/admin/get-logo`,
+  UPLOADBACKGROUND: `${process.env.REACT_APP_API_URL}/settings/admin/upload-background`,
+  GETBACKGROUND: `${process.env.REACT_APP_API_URL}/settings/admin/get-background`,
 }

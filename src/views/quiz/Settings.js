@@ -24,14 +24,42 @@ import api from 'src/services'
 import { API_URLS } from 'src/config/Constants'
 import { showSuccessMsg, showWarningMsg, showErrorMsg } from 'src/config/common'
 
+/**
+ * Settings Component
+ *
+ * API Structure for UPDATESETTINGS:
+ * {
+ *   backgroundColor: string (hex color),
+ *   textColor: string (hex color),
+ *   fontFamily: string,
+ *   logoWidth: string (number as string, 50-500),
+ *   logoHeight: string (number as string, 20-300)
+ * }
+ *
+ * API Structure for GETSETTINGS response:
+ * {
+ *   success: boolean,
+ *   data: {
+ *     backgroundColor: string,
+ *     textColor: string,
+ *     fontFamily: string,
+ *     logoWidth: string,
+ *     logoHeight: string
+ *   }
+ * }
+ */
 const Settings = () => {
   const [settings, setSettings] = useState({
     backgroundColor: '#ffffff',
     textColor: '#000000',
     fontFamily: 'Postbook, sans-serif',
   })
-  const [loading, setLoading] = useState(false)
+
   const [saving, setSaving] = useState(false)
+  const [logoWidth, setLogoWidth] = useState(150)
+  const [logoHeight, setLogoHeight] = useState(100)
+  const [loading, setLoading] = useState(false)
+  const [savingLogoSize, setSavingLogoSize] = useState(false)
   const [alert, setAlert] = useState({ show: false, message: '', color: 'success' })
 
   // Logo upload states
@@ -39,6 +67,12 @@ const Settings = () => {
   const [logoPreview, setLogoPreview] = useState(null)
   const [currentLogo, setCurrentLogo] = useState(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+
+  // Background image upload states
+  const [backgroundFile, setBackgroundFile] = useState(null)
+  const [backgroundPreview, setBackgroundPreview] = useState(null)
+  const [currentBackground, setCurrentBackground] = useState(null)
+  const [uploadingBackground, setUploadingBackground] = useState(false)
 
   const localFonts = [
     { value: 'Postbook, sans-serif', label: 'Postbook (Clean & Modern)' },
@@ -54,6 +88,7 @@ const Settings = () => {
   useEffect(() => {
     getSettings()
     getLogo()
+    getBackground()
   }, [])
 
   const getSettings = async () => {
@@ -61,23 +96,29 @@ const Settings = () => {
       setLoading(true)
       const response = await api.get(API_URLS.GETSETTINGS)
 
-      if (response.data.success) {
+      if (response.data.success && response.data.data) {
         const settingsData = response.data.data || {
           backgroundColor: '#ffffff',
           textColor: '#000000',
           fontFamily: 'Postbook, sans-serif',
         }
         setSettings(settingsData)
+
+        setLogoWidth(response.data.data?.logoWidth || 150)
+        setLogoHeight(response.data.data?.logoHeight || 100)
       } else {
         showWarningMsg(response.data.message || 'Failed to load settings')
       }
     } catch (error) {
       console.error('Error loading settings:', error)
+
       setSettings({
         backgroundColor: '#ffffff',
         textColor: '#000000',
         fontFamily: 'Postbook, sans-serif',
       })
+      setLogoWidth(150)
+      setLogoHeight(100)
     } finally {
       setLoading(false)
     }
@@ -101,12 +142,35 @@ const Settings = () => {
     }
   }
 
+  const getBackground = async () => {
+    try {
+      const response = await api.get(API_URLS.GETBACKGROUND)
+      if (response.data.success) {
+        const backgroundUrl = response.data.backgroundImage || response.data.data?.backgroundImage
+        if (backgroundUrl) {
+          const fullBackgroundUrl = `${process.env.REACT_APP_UPLOAD_URL}${backgroundUrl}`
+          setCurrentBackground(fullBackgroundUrl)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading background:', error)
+    }
+  }
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setSettings((prev) => ({
       ...prev,
       [name]: value,
     }))
+  }
+
+  const handleLogoWidthChange = (e) => {
+    setLogoWidth(parseInt(e.target.value) || 0)
+  }
+
+  const handleLogoHeightChange = (e) => {
+    setLogoHeight(parseInt(e.target.value) || 0)
   }
 
   // Logo upload functions
@@ -139,6 +203,41 @@ const Settings = () => {
       const reader = new FileReader()
       reader.onload = (e) => {
         setLogoPreview(e.target.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Background image upload functions
+  const handleBackgroundChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setAlert({
+          show: true,
+          message: 'Please select a valid image file',
+          color: 'danger',
+        })
+        return
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setAlert({
+          show: true,
+          message: 'Image size should be less than 5MB',
+          color: 'danger',
+        })
+        return
+      }
+
+      setBackgroundFile(file)
+
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setBackgroundPreview(e.target.result)
       }
       reader.readAsDataURL(file)
     }
@@ -189,6 +288,51 @@ const Settings = () => {
     }
   }
 
+  const handleBackgroundUpload = async () => {
+    if (!backgroundFile) {
+      setAlert({
+        show: true,
+        message: 'Please select a background image to upload',
+        color: 'danger',
+      })
+      return
+    }
+
+    try {
+      setUploadingBackground(true)
+      const formData = new FormData()
+      formData.append('background', backgroundFile)
+
+      const response = await api.post(API_URLS.UPLOADBACKGROUND, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      if (response.data.success) {
+        showSuccessMsg('Background image uploaded successfully!')
+        setBackgroundFile(null)
+        setBackgroundPreview(null)
+        setAlert({ show: false, message: '', color: 'success' })
+
+        // Set the uploaded image as current background with full upload URL
+        const uploadedBackgroundUrl = `${process.env.REACT_APP_UPLOAD_URL}${response.data.backgroundImage || response.data.data?.backgroundImage}`
+        setCurrentBackground(uploadedBackgroundUrl)
+      } else {
+        showWarningMsg(response.data.message || 'Failed to upload background image')
+      }
+    } catch (error) {
+      console.error('Error uploading background image:', error)
+      if (error.response?.data?.msg) {
+        showErrorMsg(error.response.data.msg)
+      } else {
+        showErrorMsg('Failed to upload background image. Please try again.')
+      }
+    } finally {
+      setUploadingBackground(false)
+    }
+  }
+
   const validateForm = () => {
     const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
 
@@ -220,13 +364,17 @@ const Settings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    console.log('handleSubmit called')
+    console.log('settings:', settings)
 
     if (!validateForm()) {
+      console.log('Form validation failed')
       return
     }
 
     try {
       setSaving(true)
+      console.log('Sending settings to API:', settings)
       const response = await api.post(API_URLS.UPDATESETTINGS, settings)
 
       if (response.data.success) {
@@ -247,6 +395,39 @@ const Settings = () => {
     }
   }
 
+  const handleLogoSizeSubmit = async (e) => {
+    try {
+      if (logoWidth <= 0 || logoHeight <= 0) {
+        showErrorMsg('The Logo width or height should be bigger than 0')
+        return
+      }
+
+      setSavingLogoSize(true)
+      const logoSizeData = {
+        logoWidth: logoWidth,
+        logoHeight: logoHeight,
+      }
+
+      const response = await api.post(API_URLS.UPDATELOGOSIZE, logoSizeData)
+
+      if (response.data.success) {
+        showSuccessMsg('Logo size updated successfully!')
+        setAlert({ show: false, message: '', color: 'success' })
+      } else {
+        showWarningMsg(response.data.message || 'Failed to update logo size')
+      }
+    } catch (error) {
+      console.error('Error updating logo size:', error)
+      if (error.response?.data?.msg) {
+        showErrorMsg(error.response.data.msg)
+      } else {
+        showErrorMsg('Failed to update logo size. Please try again.')
+      }
+    } finally {
+      setSavingLogoSize(false)
+    }
+  }
+
   const getPreviewStyle = () => ({
     backgroundColor: settings.backgroundColor,
     color: settings.textColor,
@@ -260,6 +441,13 @@ const Settings = () => {
     justifyContent: 'center',
     alignItems: 'center',
     textAlign: 'center',
+  })
+
+  const getLogoStyle = () => ({
+    width: `${logoWidth}px`,
+    height: `${logoHeight}px`,
+    maxWidth: '100%',
+    objectFit: 'contain',
   })
 
   if (loading) {
@@ -468,6 +656,97 @@ const Settings = () => {
                 </div>
               </CCol>
 
+              {/* Background Image Upload */}
+              <CCol xs={12} className="mb-4">
+                <CCard>
+                  <CCardHeader>
+                    <div className="d-flex align-items-center gap-2">
+                      <CIcon icon={cilImage} />
+                      <h5 className="mb-0">Background Image Settings</h5>
+                    </div>
+                    <small className="text-medium-emphasis">
+                      Upload a new background image for your application
+                    </small>
+                  </CCardHeader>
+                  <CCardBody>
+                    <CRow>
+                      {/* Current Background Display */}
+                      <CCol lg={6} className="mb-4">
+                        <h6>Current Background</h6>
+                        <div className="border rounded p-3 text-center">
+                          {currentBackground ? (
+                            <CImage
+                              src={currentBackground}
+                              alt="Current Background"
+                              className="img-fluid"
+                              style={{ maxHeight: '150px', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <div className="text-medium-emphasis">
+                              <CIcon icon={cilImage} size="xl" />
+                              <p className="mt-2 mb-0">No background image uploaded yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </CCol>
+
+                      {/* Background Upload */}
+                      <CCol lg={6} className="mb-4">
+                        <h6>Upload New Background</h6>
+                        <div className="mb-3">
+                          <CFormLabel htmlFor="backgroundFile">Select Background File</CFormLabel>
+                          <CFormInput
+                            id="backgroundFile"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleBackgroundChange}
+                            className="mb-2"
+                          />
+                          <small className="text-medium-emphasis">
+                            Supported formats: JPG, PNG, GIF. Max size: 5MB
+                          </small>
+                        </div>
+
+                        {/* Background Preview */}
+                        {backgroundPreview && (
+                          <div className="mb-3">
+                            <h6>Preview</h6>
+                            <div className="border rounded p-2 text-center">
+                              <CImage
+                                src={backgroundPreview}
+                                alt="Background Preview"
+                                className="img-fluid"
+                                style={{ maxHeight: '150px', maxWidth: '100%' }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Upload Button */}
+                        <CButton
+                          color="success"
+                          onClick={handleBackgroundUpload}
+                          disabled={!backgroundFile || uploadingBackground}
+                          className="d-flex align-items-center gap-2"
+                        >
+                          {uploadingBackground ? (
+                            <>
+                              <CSpinner size="sm" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <CIcon icon={cilArrowThickFromBottom} />
+                              Upload Background
+                            </>
+                          )}
+                        </CButton>
+                      </CCol>
+                    </CRow>
+                  </CCardBody>
+                </CCard>
+              </CCol>
+
               {/* Logo Upload */}
               <CCol xs={12} className="mb-4">
                 <CCard>
@@ -477,7 +756,7 @@ const Settings = () => {
                       <h5 className="mb-0">Logo Settings</h5>
                     </div>
                     <small className="text-medium-emphasis">
-                      Upload a new logo for your application
+                      Upload a new logo and customize its size for your application
                     </small>
                   </CCardHeader>
                   <CCardBody>
@@ -491,7 +770,7 @@ const Settings = () => {
                               src={currentLogo}
                               alt="Current Logo"
                               className="img-fluid"
-                              style={{ maxHeight: '150px', maxWidth: '100%' }}
+                              style={getLogoStyle()}
                             />
                           ) : (
                             <div className="text-medium-emphasis">
@@ -559,6 +838,73 @@ const Settings = () => {
                 </CCard>
               </CCol>
             </CForm>
+          </CCardBody>
+        </CCard>
+      </CCol>
+
+      {/* Logo Size Settings - Separate Section */}
+      <CCol xs={12} className="mb-4">
+        <CCard>
+          <CCardHeader>
+            <div className="d-flex align-items-center gap-2">
+              <CIcon icon={cilImage} />
+              <h5 className="mb-0">Logo Size Settings</h5>
+            </div>
+            <small className="text-medium-emphasis">
+              Customize the width and height of your logo
+            </small>
+          </CCardHeader>
+          <CCardBody>
+            <CRow>
+              <CCol lg={6} className="mb-3">
+                <CFormLabel htmlFor="logoWidth">Logo Width (px)</CFormLabel>
+                <CFormInput
+                  id="logoWidth"
+                  name="logoWidth"
+                  type="number"
+                  value={logoWidth}
+                  onChange={handleLogoWidthChange}
+                  min="50"
+                  max="500"
+                  placeholder="150"
+                />
+              </CCol>
+              <CCol lg={6} className="mb-3">
+                <CFormLabel htmlFor="logoHeight">Logo Height (px)</CFormLabel>
+                <CFormInput
+                  id="logoHeight"
+                  name="logoHeight"
+                  type="number"
+                  value={logoHeight}
+                  onChange={handleLogoHeightChange}
+                  min="20"
+                  max="300"
+                  placeholder="100"
+                />
+              </CCol>
+            </CRow>
+
+            {/* Logo Size Save Button */}
+            <div className="d-flex justify-content-end">
+              <CButton
+                color="primary"
+                disabled={savingLogoSize}
+                className="d-flex align-items-center gap-2"
+                onClick={handleLogoSizeSubmit}
+              >
+                {savingLogoSize ? (
+                  <>
+                    <CSpinner size="sm" />
+                    Saving Logo Size...
+                  </>
+                ) : (
+                  <>
+                    <CIcon icon={cilSave} />
+                    Save Logo Size
+                  </>
+                )}
+              </CButton>
+            </div>
           </CCardBody>
         </CCard>
       </CCol>
